@@ -124,7 +124,6 @@ list = do (name, eltChar) <- lookAhead (start "ol" '#' <|> start "ul" '-')
 blockquote :: Parser Elem
 blockquote = Elem "blockquote" <$> subdocument
 
--- doesn't work, gobbles extra blank spaces at end
 verbatim = do head <- line
               rest <- (newline >> moreLines) <|> ([] <$ eof)
               -- Trailing blank lines are omitted
