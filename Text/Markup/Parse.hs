@@ -103,7 +103,7 @@ document = Elem "body" <$> subdocument
 
 subdocument :: Parser [Content]
 subdocument = map Child <$> indentedBlankSep element
-    where element = section <|> paragraph
+    where element = section <|> header <|> paragraph
           section = indented 2 $ indented 1 verbatim <|> list <|> blockquote
 
 
@@ -179,4 +179,9 @@ span = joinText . intercalate [Text " "] <$> sepBy spanLine nextLine
 -- caller. Similarly, can't start with an unescaped *, but that's handled by
 -- trying to parse header before us.
 paragraph :: Parser Elem
-paragraph = noSpace >> Elem "p" <$> span
+paragraph = noSpace >> Elem "p" <$> span -- XXX: is noSpace necessary?
+
+header :: Parser Elem
+header = do hlvl <- length <$> many1 (char '*')
+            char ' '
+            Elem ("h" ++ show hlvl) <$> span
