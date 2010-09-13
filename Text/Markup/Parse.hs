@@ -48,7 +48,9 @@ test p s = putStrLn $ showMarkupAsXML $ test1 p s
 
 -- Miscellany
 metachars = "\r\n\\{}"
-isTagChar x = isAlphaNum x || elem x "-.+"
+
+isInitialTagChar = isAlphaNum
+isMedialTagChar x = isAlphaNum x || elem x "-.+"
 
 -- Checks that the next character isn't "empty" - that is, either whitespace, an
 -- end-of-document indicator '}', or EOF.
@@ -157,10 +159,11 @@ chunk = (Text <$> many1 (noneOf metachars)) <|> -- plain old text
       -- the (:[]) turns a Char into a [Char], ie a String.
       -- XXX: '-' can't be escaped with backslash. This is due to an issue with
       -- the markup spec.
-      escapedChar = Text . (:[]) <$> satisfy (not . isTagChar)
+      escapedChar = Text . (:[]) <$> satisfy (not . isInitialTagChar)
       taggedElement = Child <$> do
         isSubdocTag <- asks ctxIsSubdocumentTag
-        name <- many1 $ satisfy isTagChar
+        name <- (:) <$> satisfy isInitialTagChar
+                    <*> many (satisfy isMedialTagChar)
         contents <- between (char '{') (char '}') $
                     if isSubdocTag name then subdocument else span
         return $ Elem name contents
