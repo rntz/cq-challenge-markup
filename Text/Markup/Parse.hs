@@ -70,7 +70,7 @@ inlineSpaces = skipMany inlineSpace <?> "inline white-space"
 -- Gobbles blank lines until a non-blank line or end-of-document. Always
 -- succeeds.
 -- XXX: there has to be a better way to do this.
-blankLines = do many (try $ inlineSpaces >> newline)
+blankLines = do many $ try $ inlineSpaces >> newline
                 optional $ try $ inlineSpaces >> eod
 
 
@@ -97,7 +97,7 @@ deepened i = local (\ctx -> ctx { ctxIndentDepth = i + ctxIndentDepth ctx})
 
 -- The same, but conveniently parses the indent first.
 indented :: Int -> Parser a -> Parser a
-indented i p = do indent i; deepened i p
+indented i p = indent i >> deepened i p
 
 -- Separated by blank lines and indented to the current depth
 indentedBlankSep :: Parser a -> Parser [a]
