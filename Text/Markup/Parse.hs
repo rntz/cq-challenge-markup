@@ -186,7 +186,6 @@ span = joinText . intercalate [Text " "] <$> sepBy spanLine nextLine
 -- caller. Similarly, can't start with an unescaped *, but that's handled by
 -- trying to parse header before us.
 paragraph :: Parser Elem
--- notEmpty is necessary to avoid accepting empty input.
 paragraph = notEmpty >> Elem "p" <$> span
 
 header :: Parser Elem
