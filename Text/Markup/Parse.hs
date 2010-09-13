@@ -124,7 +124,7 @@ verbatim = do head <- line
               rest <- (newline >> moreLines) <|> ([] <$ eof)
               -- Trailing blank lines are omitted
               let lines = dropTrailingBlanks (head : rest)
-              return $ Elem "verbatim" [Text (intercalate "\n" lines)]
+              return $ Elem "pre" [Text (intercalate "\n" lines)]
     where
       line = manyTill anyChar eol -- gobble a line of verbatim input
       -- We try blankLine before indentedLine to ensure that blank lines become
