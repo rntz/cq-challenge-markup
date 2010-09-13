@@ -32,12 +32,14 @@ type Parser a = ParsecT String () (Reader Context) a
 
 -- The parse function
 parse :: (String -> Bool) -> SourceName -> String -> Either ParseError Elem
-parse isSubdocTag sourceName text = runReader parsed ctx
-    where parsed = runPT document () sourceName text
+parse isSubdocTag sourceName text = parse1 isSubdocTag sourceName (document <* eof) text
+
+parse1 isSubdocTag sourceName p text = runReader parsed ctx
+    where parsed = runPT p () sourceName text
           ctx = Context { ctxIndentDepth = 0
                         , ctxIsSubdocumentTag = isSubdocTag }
 
-test1 p s = case Text.Markup.Parse.parse (const False) "<unknown>" s of
+test1 p s = case Text.Markup.Parse.parse1 (const True) "<unknown>" p s of
               Right x -> x
               Left e -> error (show e)
 
