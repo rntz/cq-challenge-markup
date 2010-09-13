@@ -30,6 +30,21 @@ data Context = Context {
 -- to parsing strings.
 type Parser a = ParsecT String () (Reader Context) a
 
+-- The parse function
+parse :: (String -> Bool) -> SourceName -> String -> Either ParseError Elem
+parse isSubdocTag sourceName text = runReader parsed ctx
+    where parsed = runPT document () sourceName text
+          ctx = Context { ctxIndentDepth = 0
+                        , ctxIsSubdocumentTag = isSubdocTag }
+
+test1 p s = case Text.Markup.Parse.parse (const False) "<unknown>" s of
+              Right x -> x
+              Left e -> error (show e)
+
+test p s = putStrLn $ showMarkupAsXML $ test1 p s
+
+
+-- Miscellany
 metachars = "\r\n\\{}"
 
 noSpace = lookAhead $ satisfy $ not . isSpace
@@ -83,12 +98,6 @@ indentedBlankSep p = sepBy (p <* blankLines) currentIndent
 
 
 -- Parsing documents
-test1 p s = case runReader (runPT p () "" s) (Context 0 (const False)) of
-              Right x -> x
-              Left e -> error (show e)
-
-test p s = putStrLn $ showMarkupAsXML $ test1 p s
-
 document :: Parser Elem
 document = Elem "body" <$> subdocument
 
@@ -110,25 +119,27 @@ list = do (name, eltChar) <- lookAhead (start "ol" '#' <|> start "ul" '-')
 blockquote :: Parser Elem
 blockquote = Elem "blockquote" <$> subdocument
 
-verbatim :: Parser Elem
-verbatim = do start <- line
-              rest <- many $ newline >> indLine
-              let text = intercalate "\n" (start : rest)
-              return $ Elem "verbatim" [Text text]
+-- doesn't work, gobbles extra blank spaces at end
+verbatim = do head <- line
+              rest <- (newline >> moreLines) <|> ([] <$ eof)
+              -- Trailing blank lines are omitted
+              let lines = dropTrailingBlanks (head : rest)
+              return $ Elem "verbatim" [Text (intercalate "\n" lines)]
     where
       line = manyTill anyChar eol -- gobble a line of verbatim input
-      -- Either we gobble a line at the current indent, or the line is blank and
-      -- we ignore it.
-      indLine = (currentIndent >> line) <|> ("" <$ inlineSpaces)
-      eol = lookAhead newline <|> eod <?> "end of line"
+      -- We try blankLine before indentedLine to ensure that blank lines become
+      -- empty strings (""), so are dropped correctly by dropTrailingBlanks.
+      moreLines = sepEndBy (blankLine <|> indentedLine) newline
+      blankLine = "" <$ try (inlineSpaces <* eol)
+      indentedLine = currentIndent >> line
+      -- Must use eof instead of eod, because verbatim sections in subdocuments
+      -- can contain right-braces }.
+      eol = lookAhead newline <|> eof <?> "end of line"
+      dropTrailingBlanks = reverse . dropWhile (== "") . reverse
 
 
 
 -- Paragraphs
-
--- A line-ending followed by the appropriate amount of whitespace to bring us
--- back to our current indent level.
-nextLine = try $ newline >> currentIndent >> noSpace
 
 {- A "chunk" a simple in-line component of a text span. It is one of:
     - A sequence of unescaped characters ("foo *bar*, baz")
@@ -160,6 +171,9 @@ span = joinText . intercalate [Text " "] <$> sepBy spanLine nextLine
       joinText (Text x : Text y : rest) = joinText $ Text (x++y) : rest
       joinText (x:xs) = x : joinText xs
       joinText [] = []
+      -- A line-ending followed by the appropriate amount of whitespace to bring us
+      -- back to our current indent level.
+      nextLine = try $ newline >> currentIndent >> noSpace
 
 -- A paragraph can't begin with a space, but that should be ensured by our
 -- caller. Similarly, can't start with an unescaped *, but that's handled by
