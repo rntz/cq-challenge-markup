@@ -190,6 +190,5 @@ paragraph :: Parser Elem
 paragraph = notEmpty >> Elem "p" <$> span
 
 header :: Parser Elem
-header = do hlvl <- length <$> many1 (char '*')
-            char ' '
+header = do hlvl <- length <$> many1 (char '*') <* char ' '
             Elem ("h" ++ show hlvl) <$> span
