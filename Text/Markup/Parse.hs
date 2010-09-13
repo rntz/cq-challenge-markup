@@ -4,7 +4,7 @@ where
 import Prelude hiding (span)    -- we want to use that name
 
 import Control.Monad.Reader
-import Data.Char (isSpace)
+import Data.Char (isSpace, isAlphaNum)
 import Data.List (intercalate)
 import Text.Parsec hiding (newline) -- Parsec's newline is '\n', but we want
                                     -- '\r\n' and '\r' also.
@@ -48,6 +48,7 @@ test p s = putStrLn $ showMarkupAsXML $ test1 p s
 
 -- Miscellany
 metachars = "\r\n\\{}"
+isTagChar x = isAlphaNum x || elem x "-.+"
 
 -- Checks that the next character isn't "empty" - that is, either whitespace, an
 -- end-of-document indicator '}', or EOF.
@@ -155,10 +156,12 @@ chunk = (Text <$> many1 (noneOf metachars)) <|> -- plain old text
         (char '\\' >> (taggedElement <|> escapedChar))
     where
       -- the (:[]) turns a Char into a [Char], ie a String.
-      escapedChar = Text . (:[]) <$> anyChar
+      -- XXX: '-' can't be escaped with backslash. This is due to an issue with
+      -- the markup spec.
+      escapedChar = Text . (:[]) <$> satisfy (not . isTagChar)
       taggedElement = Child <$> do
         isSubdocTag <- asks ctxIsSubdocumentTag
-        name <- many1 (alphaNum <|> oneOf "-.+")
+        name <- many1 $ satisfy isTagChar
         contents <- between (char '{') (char '}') $
                     if isSubdocTag name then subdocument else span
         return $ Elem name contents
