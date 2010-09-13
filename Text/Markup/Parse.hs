@@ -47,11 +47,9 @@ test p s = putStrLn $ showMarkupAsXML $ test1 p s
 -- Miscellany
 metachars = "\r\n\\{}"
 
-noSpace = lookAhead $ satisfy $ not . isSpace
-
-isInlineSpace x = Data.Char.isSpace x && notElem x "\n\r"
-inlineSpace = satisfy isInlineSpace <?> "inline space"
-inlineSpaces = skipMany inlineSpace <?> "inline white-space"
+-- Checks that the next character isn't "empty" - that is, either whitespace, an
+-- end-of-document indicator '}', or EOF.
+notEmpty = lookAhead $ satisfy $ \x -> not (isSpace x || x == '}')
 
 ignore p = () <$ p              -- Performs p, then returns ().
 
@@ -59,6 +57,10 @@ newline = (ignore $ char '\n') <|> (char '\r' >> optional (char '\n'))
           <?> "newline"
 
 eod = eof <|> ignore (lookAhead $ char '}') <?> "end of (sub)document"
+
+isInlineSpace x = isSpace x && notElem x "\n\r"
+inlineSpace = satisfy isInlineSpace <?> "inline space"
+inlineSpaces = skipMany inlineSpace <?> "inline white-space"
 
 -- Gobbles blank lines until a non-blank line or end-of-document. Always
 -- succeeds.
@@ -173,13 +175,14 @@ span = joinText . intercalate [Text " "] <$> sepBy spanLine nextLine
       joinText [] = []
       -- A line-ending followed by the appropriate amount of whitespace to bring us
       -- back to our current indent level.
-      nextLine = try $ newline >> currentIndent >> noSpace
+      nextLine = try $ newline >> currentIndent >> notEmpty
 
 -- A paragraph can't begin with a space, but that should be ensured by our
 -- caller. Similarly, can't start with an unescaped *, but that's handled by
 -- trying to parse header before us.
 paragraph :: Parser Elem
-paragraph = noSpace >> Elem "p" <$> span -- XXX: is noSpace necessary?
+-- notEmpty is necessary to avoid accepting empty input.
+paragraph = notEmpty >> Elem "p" <$> span
 
 header :: Parser Elem
 header = do hlvl <- length <$> many1 (char '*')
