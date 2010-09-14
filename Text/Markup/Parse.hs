@@ -113,7 +113,7 @@ indented i p = indent i >> deepened i p
 -- Separated by blank lines and indented to the current depth
 indentedBlankSep :: Parser a -> Parser [a]
 -- XXX: doesn't ensure newlines, but paragraph doesn't require a terminal
--- newline
+-- newline. wait, shouldn't blankLines handle that? Investigate.
 indentedBlankSep p = sepBy (p <* blankLines) currentIndent
 
 
