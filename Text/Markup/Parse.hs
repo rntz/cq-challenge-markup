@@ -17,29 +17,38 @@ import Control.Applicative hiding
 import Text.Markup.AST
 import Text.Markup.XML          -- XXX: remove
 
--- Our context while parsing.
-data Context = Context {
-    -- current indentation depth
-      ctxIndentDepth :: Int
-    -- predicate determining which tags are subdocument
-    , ctxIsSubdocumentTag :: String -> Bool
+-- External configuration passed to the parser 
+data Config = Config { 
+    -- predicate telling us which tags start subdocuments
+      isSubdocumentTag :: String -> Bool
+    -- whether to parse links
+    , parseLinks :: Bool
     }
 
--- For simplicity and readability, especially to those not familiar with
--- Haskell, and to avoid having to use GHC extensions, we are limiting ourselves
--- to parsing strings.
+defaultConfig = Config { isSubdocumentTag = const False
+                       , parseLinks = True }
+
+-- Our internal context while parsing.
+data Context = Context { ctxIndentDepth :: Int -- current indentation depth
+                       , ctxConfig :: Config } -- configuration
+
+-- We parse strings, we have no state, and our underlying monad is the ability
+-- to read our context.
 type Parser a = ParsecT String () (Reader Context) a
 
+-- Getting at our configuration from context.
+askConfig :: (Config -> a) -> Parser a
+askConfig accessor = asks (accessor . ctxConfig)
+
 -- The parse function
-parse :: (String -> Bool) -> SourceName -> String -> Either ParseError Elem
-parse isSubdocTag sourceName text = parse1 isSubdocTag sourceName (document <* eof) text
+parse :: Config -> SourceName -> String -> Either ParseError Elem
+parse cfg sourceName text = parse1 cfg sourceName document text
 
-parse1 isSubdocTag sourceName p text = runReader parsed ctx
+parse1 cfg sourceName p text = runReader parsed ctx
     where parsed = runPT p () sourceName text
-          ctx = Context { ctxIndentDepth = 0
-                        , ctxIsSubdocumentTag = isSubdocTag }
+          ctx = Context { ctxIndentDepth = 0, ctxConfig = cfg }
 
-test1 p s = case Text.Markup.Parse.parse1 (const True) "<unknown>" p s of
+test1 p s = case Text.Markup.Parse.parse1 defaultConfig "<unknown>" p s of
               Right x -> x
               Left e -> error (show e)
 
@@ -47,12 +56,15 @@ test p s = putStrLn $ showMarkupAsXML $ test1 p s
 
 
 -- Miscellany
-metachars = "\r\n\\{}"
+askMetachars :: Parser [Char]
+askMetachars = chars <$> askConfig parseLinks
+    where chars links = "\r\n\\{}" ++ if links then "[]" else ""
 
 isTagChar x = isAlphaNum x || elem x "_.+"
 
 -- Checks that the next character isn't "empty" - that is, either whitespace, an
 -- end-of-document indicator '}', or EOF.
+notEmpty :: Parser Char
 notEmpty = lookAhead $ satisfy $ \x -> not (isSpace x || x == '}')
 
 ignore p = () <$ p              -- Performs p, then returns ().
@@ -100,12 +112,14 @@ indented i p = indent i >> deepened i p
 
 -- Separated by blank lines and indented to the current depth
 indentedBlankSep :: Parser a -> Parser [a]
+-- XXX: doesn't ensure newlines, but paragraph doesn't require a terminal
+-- newline
 indentedBlankSep p = sepBy (p <* blankLines) currentIndent
 
 
 -- Parsing documents
 document :: Parser Elem
-document = Elem "body" <$> subdocument
+document = Elem "body" <$> subdocument <* eof
 
 subdocument :: Parser [Content]
 subdocument = map Child <$> indentedBlankSep element
@@ -152,7 +166,7 @@ verbatim = do head <- line
     - An explicitly tagged element ("\i{whatever}") 
  -}
 chunk :: Parser Content
-chunk = (Text <$> many1 (noneOf metachars)) <|> -- plain old text
+chunk = (Text <$> (many1 . noneOf =<< askMetachars)) <|> -- plain old text
         (char '\\' >> (taggedElement <|> escapedChar))
     where
       -- the (:[]) turns a Char into a [Char], ie a String.
@@ -160,7 +174,7 @@ chunk = (Text <$> many1 (noneOf metachars)) <|> -- plain old text
       -- the markup spec.
       escapedChar = Text . (:[]) <$> satisfy (not . isTagChar)
       taggedElement = Child <$> do
-        isSubdocTag <- asks ctxIsSubdocumentTag
+        isSubdocTag <- askConfig isSubdocumentTag
         name <- many1 (satisfy isTagChar)
         contents <- between (char '{') (char '}') $
                     if isSubdocTag name then subdocument else span

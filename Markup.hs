@@ -8,7 +8,7 @@ import Text.Markup.XML
 
 main :: IO ()
 main = do input <- getContents
-          let result = parse (const True) "<stdin>" input
+          let result = parse defaultConfig "<stdin>" input
           case result of
             Right markup -> putStrLn $ showMarkupAsXML markup
             Left error -> hPutStrLn stderr $ show error
