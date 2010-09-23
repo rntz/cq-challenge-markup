@@ -62,10 +62,9 @@ askMetachars = chars <$> askConfig parseLinks
 
 isTagChar x = isAlphaNum x || elem x "_.+"
 
--- Checks that the next character isn't "empty" - that is, either whitespace, an
--- end-of-document indicator '}', or EOF.
-notEmpty :: Parser Char
-notEmpty = lookAhead $ satisfy $ \x -> not (isSpace x || x == '}')
+nonEmpty :: String -> Parser [a] -> Parser [a]
+nonEmpty s p = do l <- p
+                  if null l then fail s else return l
 
 ignore p = () <$ p              -- Performs p, then returns ().
 
@@ -112,8 +111,6 @@ indented i p = indent i >> deepened i p
 
 -- Separated by blank lines and indented to the current depth
 indentedBlankSep :: Parser a -> Parser [a]
--- XXX: doesn't ensure newlines, but paragraph doesn't require a terminal
--- newline. wait, shouldn't blankLines handle that? Investigate.
 indentedBlankSep p = sepBy (p <* blankLines) currentIndent
 
 
@@ -182,26 +179,25 @@ chunk = (Text <$> (many1 . noneOf =<< askMetachars)) <|> -- plain old text
 
 -- One line in a paragraph or text span
 spanLine :: Parser [Content]
-spanLine = many chunk           -- having zero chunks is possible, eg. \i{}
+spanLine = many1 chunk
 
 -- A text span: the body of a paragraph or non-subdocument tagged element.
 span :: Parser [Content]
 -- (intercalate [Text " "]) adds spaces between lines, as per the Markup spec
-span = joinText . intercalate [Text " "] <$> sepBy spanLine nextLine
+span = joinText . intercalate [Text " "] <$> sepEndBy spanLine nextLine
     where
       joinText (Text x : Text y : rest) = joinText $ Text (x++y) : rest
       joinText (x:xs) = x : joinText xs
       joinText [] = []
       -- A line-ending followed by the appropriate amount of whitespace to bring us
       -- back to our current indent level.
-      nextLine = try $ newline >> currentIndent >> notEmpty
+      nextLine = try $ newline >> currentIndent
 
--- A paragraph can't begin with a space, but that should be ensured by our
--- caller. Similarly, can't start with an unescaped *, but that's handled by
--- trying to parse header before us.
+-- A paragraph can't start with an unescaped *, but that's handled by trying to
+-- parse header before us.
 paragraph :: Parser Elem
-paragraph = notEmpty >> Elem "p" <$> span
+paragraph = Elem "p" <$> nonEmpty "empty paragraph" span
 
 header :: Parser Elem
 header = do hlvl <- length <$> many1 (char '*') <* char ' '
-            Elem ("h" ++ show hlvl) <$> span
+            Elem ("h" ++ show hlvl) <$> nonEmpty "empty header" span
