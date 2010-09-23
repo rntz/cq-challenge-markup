@@ -156,6 +156,22 @@ verbatim = do head <- line
 
 
 -- Paragraphs
+textChild :: String -> String -> Content
+textChild x y = Child $ Elem x [Text y]
+
+linkContent :: Parser Elem
+linkContent = do name <- many $ noneOf "|]"
+                 key <- option [] $ do char '|'
+                                       name <- many (noneOf "]")
+                                       return [textChild "key" name]
+                 return $ Elem "link" $ [Text name] ++ key
+
+linkDef :: Parser Elem
+linkDef = try $ do name <- between (char '[') (char ']') $ many $ noneOf "]"
+                   inlineSpaces
+                   url <- between (char '<') (char '>') $ many $ noneOf ">"
+                   return $ Elem "link_def" [textChild "link" name,
+                                             textChild "url" url]
 
 {- A "chunk" a simple in-line component of a text span. It is one of:
     - A sequence of unescaped characters ("foo *bar*, baz")
@@ -164,6 +180,9 @@ verbatim = do head <- line
  -}
 chunk :: Parser Content
 chunk = (Text <$> (many1 . noneOf =<< askMetachars)) <|> -- plain old text
+        (do pl <- askConfig parseLinks                   -- a link
+            guard pl
+            Child <$> between (char '[') (char ']') linkContent) <|>
         (char '\\' >> (taggedElement <|> escapedChar))
     where
       -- the (:[]) turns a Char into a [Char], ie a String.
@@ -196,7 +215,7 @@ span = joinText . intercalate [Text " "] <$> sepEndBy spanLine nextLine
 -- A paragraph can't start with an unescaped *, but that's handled by trying to
 -- parse header before us.
 paragraph :: Parser Elem
-paragraph = Elem "p" <$> nonEmpty "empty paragraph" span
+paragraph = linkDef <|> Elem "p" <$> nonEmpty "empty paragraph" span
 
 header :: Parser Elem
 header = do hlvl <- length <$> many1 (char '*') <* char ' '
