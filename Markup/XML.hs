@@ -1,8 +1,8 @@
-module Text.Markup.XML ( module Text.Markup.AST
-                       , markupToXML, contentToXML, showMarkupAsXML )
+module Markup.XML ( module Markup.AST
+                  , markupToXML, contentToXML, showMarkupAsXML )
 where
 
-import Text.Markup.AST
+import Markup.AST
 import qualified Text.XML.Light as XML
 
 markupToXML :: Elem -> XML.Element

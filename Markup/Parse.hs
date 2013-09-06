@@ -1,4 +1,4 @@
-module Text.Markup.Parse
+module Markup.Parse
 where
 
 import Prelude hiding (span)    -- we want to use that name
@@ -14,8 +14,8 @@ import Control.Applicative hiding
     -- avoid them here.
     ((<|>), optional, many)
 
-import Text.Markup.AST
-import Text.Markup.XML          -- XXX: remove
+import Markup.AST
+--import Markup.XML          -- XXX: remove
 
 -- External configuration passed to the parser
 data Config = Config {
@@ -47,12 +47,6 @@ parse cfg sourceName text = parse1 cfg sourceName document text
 parse1 cfg sourceName p text = runReader parsed ctx
     where parsed = runPT p () sourceName text
           ctx = Context { ctxIndentDepth = 0, ctxConfig = cfg }
-
-test1 p s = case Text.Markup.Parse.parse1 defaultConfig "<unknown>" p s of
-              Right x -> x
-              Left e -> error (show e)
-
-test p s = putStrLn $ showMarkupAsXML $ test1 p s
 
 
 -- Miscellany
@@ -117,10 +111,11 @@ indentedBlankSep p = sepBy (p <* blankLines) currentIndent
 -- Parsing documents
 document :: Parser Elem
 document = Elem "body" <$> subdocument <* eof
+-- TODO: strip out initial "-*- mode: markup -*-" line
 
 subdocument :: Parser [Content]
 subdocument = map Child <$> indentedBlankSep element
-    where element = section <|> header <|> paragraph
+    where element = blankLines >> (section <|> header <|> paragraph)
           section = indented 2 $ indented 1 verbatim <|> list <|> blockquote
 
 
@@ -208,8 +203,8 @@ span = joinText . intercalate [Text " "] <$> sepEndBy spanLine nextLine
       joinText (Text x : Text y : rest) = joinText $ Text (x++y) : rest
       joinText (x:xs) = x : joinText xs
       joinText [] = []
-      -- A line-ending followed by the appropriate amount of whitespace to bring us
-      -- back to our current indent level.
+      -- A line-ending followed by the appropriate amount of whitespace to bring
+      -- us back to our current indent level.
       nextLine = try $ newline >> currentIndent
 
 -- A paragraph can't start with an unescaped *, but that's handled by trying to

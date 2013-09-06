@@ -1,4 +1,4 @@
-module Text.Markup.AST ( Elem (..), Content (..) )
+module Markup.AST ( Elem (..), Content (..) )
 where
 
 data Elem = Elem { elemTag :: String, elemContent :: [Content] }
