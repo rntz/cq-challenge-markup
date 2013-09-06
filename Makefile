@@ -1,6 +1,6 @@
 .PHONY: always clean all
 
-EFILES=markup runtest normalize
+EFILES=markup
 all: $(EFILES)
 
 $(EFILES): %: always
