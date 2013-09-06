@@ -14,9 +14,5 @@ contentToXML :: Content -> XML.Content
 contentToXML (Text s) = XML.Text $ XML.blank_cdata { XML.cdData = s }
 contentToXML (Child e) = XML.Elem $ markupToXML e
 
--- If you're not familiar with Haskell, infix `.' is function composition.
--- Writing functions without variables by using function composition and
--- combinators is called "points-free style". Its proper usage is a matter of
--- much debate. I feel this example is simple enough to merit it.
 showMarkupAsXML :: Elem -> String
-showMarkupAsXML = XML.ppElement . markupToXML
+showMarkupAsXML = XML.showElement . markupToXML
