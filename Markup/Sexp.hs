@@ -27,6 +27,7 @@ instance Show Sexp where
 -- Escapes a string in the manner understood by Racket Scheme.
 escapeString s = concatMap escapeChar s
     where escapeChar '"' = "\\\""
+          escapeChar '\\' = "\\\\"
           escapeChar c | isPrint c = [c]
           escapeChar c = res
               where n = ord c
