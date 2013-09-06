@@ -15,4 +15,4 @@ contentToXML (Text s) = XML.Text $ XML.blank_cdata { XML.cdData = s }
 contentToXML (Child e) = XML.Elem $ markupToXML e
 
 showMarkupAsXML :: Elem -> String
-showMarkupAsXML = XML.showElement . markupToXML
+showMarkupAsXML = XML.ppElement . markupToXML

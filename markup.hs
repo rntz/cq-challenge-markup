@@ -9,12 +9,16 @@ import System.IO
 import Markup.AST
 import Markup.Parse
 import Markup.XML
+import Markup.Sexp
 
 errmsg x = hPutStrLn stderr x
 failWith x = do errmsg x; exitFailure
 
 config :: Config
 config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"] }
+
+--showMarkup = showMarkupAsXML
+showMarkup = showMarkupAsSexp
 
 main :: IO ()
 main = do
@@ -26,5 +30,5 @@ main = do
         _ -> failWith "could not parse command-line arguments"
   let result = parse config srcname input
   case result of
-    Right markup -> putStrLn $ showMarkupAsXML markup
+    Right markup -> putStrLn $ showMarkup markup
     Left error -> hPutStrLn stderr $ show error
