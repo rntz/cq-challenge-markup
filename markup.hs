@@ -18,8 +18,8 @@ config :: Config
 config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"]
                        , parseLinks = True }
 
-showMarkup = showMarkupAsXML
---showMarkup = showMarkupAsSexp
+--showMarkup = showMarkupAsXML
+showMarkup = showMarkupAsSexp
 
 main :: IO ()
 main = do
