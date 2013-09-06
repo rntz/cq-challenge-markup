@@ -107,11 +107,16 @@ indented i p = indent i >> deepened i p
 indentedBlankSep :: Parser a -> Parser [a]
 indentedBlankSep p = sepBy (p <* blankLines) currentIndent
 
+endOfLine = lookAhead newline <|> eof <?> "end of line"
+restOfLine = manyTill anyChar endOfLine
+
 
 -- Parsing documents
 document :: Parser Elem
-document = Elem "body" <$> subdocument <* eof
--- TODO: strip out initial "-*- mode: markup -*-" line
+document = Elem "body" <$> (optional modeline >> subdocument <* eof)
+
+modeline :: Parser ()
+modeline = ignore $ do inlineSpaces; string "-*-"; restOfLine
 
 subdocument :: Parser [Content]
 subdocument = map Child <$> indentedBlankSep element
@@ -131,21 +136,19 @@ list = do (name, eltChar) <- lookAhead (start "ol" '#' <|> start "ul" '-')
 blockquote :: Parser Elem
 blockquote = Elem "blockquote" <$> subdocument
 
-verbatim = do head <- line
+verbatim = do head <- restOfLine
               rest <- (newline >> moreLines) <|> ([] <$ eof)
               -- Trailing blank lines are omitted
               let lines = dropTrailingBlanks (head : rest)
               return $ Elem "pre" [Text (intercalate "\n" lines)]
     where
-      line = manyTill anyChar eol -- gobble a line of verbatim input
       -- We try blankLine before indentedLine to ensure that blank lines become
       -- empty strings (""), so are dropped correctly by dropTrailingBlanks.
       moreLines = sepEndBy (blankLine <|> indentedLine) newline
-      blankLine = "" <$ try (inlineSpaces <* eol)
-      indentedLine = currentIndent >> line
+      blankLine = "" <$ try (inlineSpaces <* endOfLine)
+      indentedLine = currentIndent >> restOfLine
       -- Must use eof instead of eod, because verbatim sections in subdocuments
       -- can contain right-braces }.
-      eol = lookAhead newline <|> eof <?> "end of line"
       dropTrailingBlanks = reverse . dropWhile (== "") . reverse
 
 
