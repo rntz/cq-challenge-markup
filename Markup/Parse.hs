@@ -52,7 +52,7 @@ parse1 cfg sourceName p text = runReader parsed ctx
 -- Miscellany
 askMetachars :: Parser [Char]
 askMetachars = chars <$> askConfig parseLinks
-    where chars links = "\r\n\\{}" ++ if links then "[]" else ""
+    where chars links = "\r\n\\{}" ++ if links then "[" else ""
 
 isTagChar x = isAlphaNum x || elem x "_.+"
 

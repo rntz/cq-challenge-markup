@@ -15,10 +15,11 @@ errmsg x = hPutStrLn stderr x
 failWith x = do errmsg x; exitFailure
 
 config :: Config
-config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"] }
+config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"]
+                       , parseLinks = True }
 
---showMarkup = showMarkupAsXML
-showMarkup = showMarkupAsSexp
+showMarkup = showMarkupAsXML
+--showMarkup = showMarkupAsSexp
 
 main :: IO ()
 main = do
