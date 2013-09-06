@@ -9,7 +9,7 @@ import Data.List (intercalate)
 import Text.Parsec hiding (newline) -- Parsec's newline is '\n', but we want
                                     -- '\r\n' and '\r' also.
 
-import Control.Applicative hiding 
+import Control.Applicative hiding
     -- These are already provided by Text.Parsec, so to avoid duplicates we
     -- avoid them here.
     ((<|>), optional, many)
@@ -17,8 +17,8 @@ import Control.Applicative hiding
 import Text.Markup.AST
 import Text.Markup.XML          -- XXX: remove
 
--- External configuration passed to the parser 
-data Config = Config { 
+-- External configuration passed to the parser
+data Config = Config {
     -- predicate telling us which tags start subdocuments
       isSubdocumentTag :: String -> Bool
     -- whether to parse links
@@ -176,7 +176,7 @@ linkDef = try $ do name <- between (char '[') (char ']') $ many $ noneOf "]"
 {- A "chunk" a simple in-line component of a text span. It is one of:
     - A sequence of unescaped characters ("foo *bar*, baz")
     - An escaped character ("\{")
-    - An explicitly tagged element ("\i{whatever}") 
+    - An explicitly tagged element ("\i{whatever}")
  -}
 chunk :: Parser Content
 chunk = (Text <$> (many1 . noneOf =<< askMetachars)) <|> -- plain old text
