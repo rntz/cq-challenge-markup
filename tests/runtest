@@ -1,0 +1,10 @@
+#!/bin/zsh
+root=${1:r}
+txtfile=${root}.txt
+xmlfile=${root}.xml
+
+fixup() {
+    sed -e 's/^ *//g;s,<body />,<body/>,'
+}
+
+diff <(fixup < "$xmlfile") <(../markup "$txtfile" | fixup)
