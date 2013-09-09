@@ -113,10 +113,11 @@ restOfLine = manyTill anyChar endOfLine
 
 -- Parsing documents
 document :: Parser Elem
-document = Elem "body" <$> (optional modeline >> subdocument <* eof)
+document = Elem "body" [] <$> (optional modeline >> subdocument <* eof)
 
 modeline :: Parser ()
-modeline = ignore $ do inlineSpaces; string "-*-"; restOfLine
+-- TODO: avoid use of try here
+modeline = ignore $ do try (inlineSpaces >> string "-*-"); restOfLine
 
 subdocument :: Parser [Content]
 subdocument = map Child <$> indentedBlankSep element
@@ -127,20 +128,20 @@ subdocument = map Child <$> indentedBlankSep element
 -- Lists, blockquotes, verbatims
 list :: Parser Elem
 list = do (name, eltChar) <- lookAhead (start "ol" '#' <|> start "ul" '-')
-          Elem name . map Child <$> indentedBlankSep (listElt eltChar)
+          Elem name [] . map Child <$> indentedBlankSep (listElt eltChar)
     where
       start name eltChar = (name, eltChar) <$ char eltChar
       listElt eltChar = do char eltChar; indent 1
-                           Elem "li" <$> deepened 2 subdocument
+                           Elem "li" [] <$> deepened 2 subdocument
 
 blockquote :: Parser Elem
-blockquote = Elem "blockquote" <$> subdocument
+blockquote = Elem "blockquote" [] <$> subdocument
 
 verbatim = do head <- restOfLine
               rest <- (newline >> moreLines) <|> ([] <$ eof)
               -- Trailing blank lines are omitted
               let lines = dropTrailingBlanks (head : rest)
-              return $ Elem "pre" [Text (intercalate "\n" lines)]
+              return $ Elem "pre" [] [Text (intercalate "\n" lines)]
     where
       -- We try blankLine before indentedLine to ensure that blank lines become
       -- empty strings (""), so are dropped correctly by dropTrailingBlanks.
@@ -155,21 +156,21 @@ verbatim = do head <- restOfLine
 
 -- Paragraphs
 textChild :: String -> String -> Content
-textChild x y = Child $ Elem x [Text y]
+textChild x y = Child $ Elem x [] [Text y]
 
 linkContent :: Parser Elem
 linkContent = do name <- many $ noneOf "|]"
                  key <- option [] $ do char '|'
                                        name <- many (noneOf "]")
                                        return [textChild "key" name]
-                 return $ Elem "link" $ [Text name] ++ key
+                 return $ Elem "link" [] $ [Text name] ++ key
 
 linkDef :: Parser Elem
 linkDef = try $ do name <- between (char '[') (char ']') $ many $ noneOf "]"
                    inlineSpaces
                    url <- between (char '<') (char '>') $ many $ noneOf ">"
-                   return $ Elem "link_def" [textChild "link" name,
-                                             textChild "url" url]
+                   return $ Elem "link_def" [] [textChild "link" name,
+                                                textChild "url" url]
 
 {- A "chunk" a simple in-line component of a text span. It is one of:
     - A sequence of unescaped characters ("foo *bar*, baz")
@@ -192,7 +193,7 @@ chunk = (Text <$> (many1 . noneOf =<< askMetachars)) <|> -- plain old text
         name <- many1 (satisfy isTagChar)
         contents <- between (char '{') (char '}') $
                     if isSubdocTag name then subdocument else span
-        return $ Elem name contents
+        return $ Elem name [] contents
 
 -- One line in a paragraph or text span
 spanLine :: Parser [Content]
@@ -213,8 +214,8 @@ span = joinText . intercalate [Text " "] <$> sepEndBy spanLine nextLine
 -- A paragraph can't start with an unescaped *, but that's handled by trying to
 -- parse header before us.
 paragraph :: Parser Elem
-paragraph = linkDef <|> Elem "p" <$> nonEmpty "empty paragraph" span
+paragraph = linkDef <|> Elem "p" [] <$> nonEmpty "empty paragraph" span
 
 header :: Parser Elem
 header = do hlvl <- length <$> many1 (char '*') <* char ' '
-            Elem ("h" ++ show hlvl) <$> nonEmpty "empty header" span
+            Elem ("h" ++ show hlvl) [] <$> nonEmpty "empty header" span

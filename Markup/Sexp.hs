@@ -40,7 +40,9 @@ escapeString s = concatMap escapeChar s
 markupToSexp :: Elem -> Sexp
 contentToSexp :: Content -> Sexp
 
-markupToSexp (Elem tag contents) = List (Atom tag : map contentToSexp contents)
+-- TODO: currently we just drop attrs. maybe we should include them?
+markupToSexp (Elem tag _ contents) =
+    List (Atom tag : map contentToSexp contents)
 contentToSexp (Text s) = String s
 contentToSexp (Child elem) = markupToSexp elem
 
