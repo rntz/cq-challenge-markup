@@ -1,10 +1,13 @@
 .PHONY: always clean all
 
-EFILES=markup
+EFILES:=markup
+PACKAGES:=parsec html xml
+HSFLAGS:=$(addprefix -package ,$(PACKAGES))
+
 all: $(EFILES)
 
 $(EFILES): %: always
-	ghc -package parsec -package xml --make $@
+	ghc $(HSFLAGS) --make $@
 
 clean:
 	find . -regex '.*\.\(hi\|o\)$$' -delete

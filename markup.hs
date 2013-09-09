@@ -7,9 +7,11 @@ import System.Exit (exitFailure)
 import System.IO
 
 import Markup.AST
+import Markup.Html
 import Markup.Parse
-import Markup.XML
 import Markup.Sexp
+import Markup.XML
+import Markup.Program (runProgram)
 
 errmsg x = hPutStrLn stderr x
 failWith x = do errmsg x; exitFailure
@@ -19,17 +21,8 @@ config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"]
                        , parseLinks = True }
 
 --showMarkup = showMarkupAsXML
-showMarkup = showMarkupAsSexp
+--showMarkup = showMarkupAsSexp
+showMarkup = showMarkupAsHtml
 
 main :: IO ()
-main = do
-  args <- getArgs
-  (srcname, input) <-
-      case args of
-        [filename] -> (,) filename <$> readFile filename
-        [] -> (,) "<stdin>" <$> getContents
-        _ -> failWith "could not parse command-line arguments"
-  let result = parse config srcname input
-  case result of
-    Right markup -> putStrLn $ showMarkup markup
-    Left error -> hPutStrLn stderr $ show error
+main = runProgram config showMarkup
