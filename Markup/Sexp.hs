@@ -1,5 +1,5 @@
 module Markup.Sexp ( Sexp (..)
-                   , markupToSexp, contentToSexp, showMarkupAsSexp )
+                   , markupToSexp, showSexp, renderMarkupAsSexp )
 where
 
 import Data.List (intercalate)
@@ -37,6 +37,12 @@ escapeString s = concatMap escapeChar s
                         | otherwise = "\\U" ++ pad 8 hex
                     pad n s = replicate (n - length s) '0' ++ s
 
+showSexp :: Sexp -> String
+showSexp = show
+
+renderMarkupAsSexp :: Elem -> String
+renderMarkupAsSexp = show . markupToSexp
+
 markupToSexp :: Elem -> Sexp
 contentToSexp :: Content -> Sexp
 
@@ -45,7 +51,3 @@ markupToSexp (Elem tag _ contents) =
     List (Atom tag : map contentToSexp contents)
 contentToSexp (Text s) = String s
 contentToSexp (Child elem) = markupToSexp elem
-
--- TODO: pretty-printing
-showMarkupAsSexp :: Elem -> String
-showMarkupAsSexp = show . markupToSexp

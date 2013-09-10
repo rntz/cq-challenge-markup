@@ -1,5 +1,5 @@
 module Markup.XML ( module Markup.AST
-                  , markupToXML, contentToXML, showMarkupAsXML )
+                  , markupToXML, showXML, renderMarkupAsXML )
 where
 
 import Markup.AST
@@ -14,5 +14,8 @@ contentToXML :: Content -> XML.Content
 contentToXML (Text s) = XML.Text $ XML.blank_cdata { XML.cdData = s }
 contentToXML (Child e) = XML.Elem $ markupToXML e
 
-showMarkupAsXML :: Elem -> String
-showMarkupAsXML = XML.ppElement . markupToXML
+showXML :: XML.Element -> String
+showXML = XML.ppElement
+
+renderMarkupAsXML :: Elem -> String
+renderMarkupAsXML = XML.ppElement . markupToXML

@@ -1,5 +1,5 @@
 module Markup.Html ( module Markup.AST
-                   , markupToHtml, showMarkupAsHtml )
+                   , markupToHtml, showHtml, renderMarkupAsHtml )
 where
 
 import Control.Monad.Identity
@@ -16,8 +16,11 @@ import Markup.Translate
 
 -- renderHTML doesn't fuck up whitespace inside of tags where it matters,
 -- although it does produce HTML that's ugly as hell.
-showMarkupAsHtml :: Elem -> String
-showMarkupAsHtml = renderHtml
+showHtml :: Html -> String
+showHtml = renderHtml
+
+renderMarkupAsHtml :: Elem -> String
+renderMarkupAsHtml = showHtml . markupToHtml
 
 htmlAttrs :: [(String,String)] -> [HtmlAttr]
 htmlAttrs = map (uncurry strAttr)
