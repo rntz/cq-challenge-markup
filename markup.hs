@@ -9,9 +9,9 @@ import System.IO
 import Markup.AST
 import Markup.Html
 import Markup.Parse
+import Markup.Program (runProgram)
 import Markup.Sexp
 import Markup.XML
-import Markup.Program (runProgram)
 
 errmsg x = hPutStrLn stderr x
 failWith x = do errmsg x; exitFailure

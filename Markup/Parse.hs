@@ -156,7 +156,7 @@ verbatim = do head <- restOfLine
 
 -- Paragraphs
 textChild :: String -> String -> Content
-textChild x y = Child $ Elem x [] [Text y]
+textChild x y = childElem x [] [Text y]
 
 linkContent :: Parser Elem
 linkContent = do name <- many $ noneOf "|]"

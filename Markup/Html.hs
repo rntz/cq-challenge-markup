@@ -54,7 +54,7 @@ fixLinks defs (Elem "link" attrs contents) =
             Child (Elem "key" _ [Text key]) : rcontents ->
                 (reverse rcontents, Map.findWithDefault err key defs)
                     where err = error $ "undefined link key: " ++ key
-  in return [Child (Elem "a" (("href",url):attrs) newContents)]
+  in return [childElem "a" (("href",url):attrs) newContents]
 
 fixLinks defs (Elem "link_def" _ _) = return []
 fixLinks _ x = return [Child x]

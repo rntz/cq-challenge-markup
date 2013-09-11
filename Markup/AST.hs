@@ -1,11 +1,14 @@
-module Markup.AST ( Doc (..), docToElem, Elem (..), Content (..) )
+module Markup.AST ( Doc (..), Attrs, Elem (..), Content (..)
+                  , docToElem, childElem)
 where
 
 newtype Doc = Doc { docContents :: [Content] }
     deriving (Show, Eq, Ord)
 
+type Attrs = [(String,String)]
+
 data Elem = Elem { elemTag :: String
-                 , elemAttrs :: [(String,String)]
+                 , elemAttrs :: Attrs
                  , elemContent :: [Content] }
             deriving (Show, Eq, Ord)
 
@@ -17,3 +20,5 @@ data Content = Text String | Child Elem
 -- HTML interpretation is to be included in another HTML document).
 docToElem :: Doc -> Elem
 docToElem (Doc content) = Elem "body" [] content
+
+childElem tag attrs content = Child $ Elem tag attrs content
