@@ -41,13 +41,13 @@ markupToHtml body = toHtml newBody
           defs = Map.fromList $ execWriter $ analyzeElem findLinkDefs body
 
 findLinkDefs :: Analysis (Writer [(String,String)])
-findLinkDefs (Child (Elem "link_def" _ [Child (Elem "link" _ [(Text key)]),
-                                        Child (Elem "url" _ [(Text url)])]))
+findLinkDefs (Elem "link_def" _ [Child (Elem "link" _ [(Text key)]),
+                                 Child (Elem "url" _ [(Text url)])])
     = tell [(key,url)]
 findLinkDefs _ = return ()
 
 fixLinks :: Map String String -> Transform Identity
-fixLinks defs (Child (Elem "link" attrs contents)) =
+fixLinks defs (Elem "link" attrs contents) =
   let (newContents, url) =
           case reverse contents of
             [Text txt] -> (contents, Map.findWithDefault txt txt defs)
@@ -56,5 +56,5 @@ fixLinks defs (Child (Elem "link" attrs contents)) =
                     where err = error $ "undefined link key: " ++ key
   in return [Child (Elem "a" (("href",url):attrs) newContents)]
 
-fixLinks defs (Child (Elem "link_def" _ _)) = return []
-fixLinks _ x = return [x]
+fixLinks defs (Elem "link_def" _ _) = return []
+fixLinks _ x = return [Child x]
