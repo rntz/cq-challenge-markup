@@ -25,4 +25,4 @@ config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"]
 renderMarkup = renderMarkupAsHtml
 
 main :: IO ()
-main = runProgram config renderMarkup
+main = runProgram config (renderMarkup . docToElem)

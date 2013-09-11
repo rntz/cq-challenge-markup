@@ -41,7 +41,7 @@ askConfig :: (Config -> a) -> Parser a
 askConfig accessor = asks (accessor . ctxConfig)
 
 -- The parse function
-parse :: Config -> SourceName -> String -> Either ParseError Elem
+parse :: Config -> SourceName -> String -> Either ParseError Doc
 parse cfg sourceName text = parse1 cfg sourceName document text
 
 parse1 cfg sourceName p text = runReader parsed ctx
@@ -112,8 +112,8 @@ restOfLine = manyTill anyChar endOfLine
 
 
 -- Parsing documents
-document :: Parser Elem
-document = Elem "body" [] <$> (optional modeline >> subdocument <* eof)
+document :: Parser Doc
+document = Doc <$> (optional modeline >> subdocument <* eof)
 
 modeline :: Parser ()
 -- TODO: avoid use of try here
