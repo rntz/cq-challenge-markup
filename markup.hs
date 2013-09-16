@@ -12,7 +12,7 @@ import Markup.Parse
 import Markup.Program (runProgram)
 import Markup.Sexp
 import Markup.XML
-import Markup.Transforms (footnote)
+import qualified Markup.Transforms as T
 
 errmsg x = hPutStrLn stderr x
 failWith x = do errmsg x; exitFailure
@@ -26,4 +26,4 @@ config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"]
 renderMarkup = renderMarkupAsHtml
 
 main :: IO ()
-main = runProgram config (renderMarkup . docToElem . footnote)
+main = runProgram config (renderMarkup . docToElem . T.footnotes . T.links)
