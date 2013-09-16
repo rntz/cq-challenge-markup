@@ -15,7 +15,6 @@ import Control.Applicative hiding
     ((<|>), optional, many)
 
 import Markup.AST
---import Markup.XML          -- XXX: remove
 
 -- External configuration passed to the parser
 data Config = Config {
@@ -119,6 +118,8 @@ modeline :: Parser ()
 -- TODO: avoid use of try here
 modeline = ignore $ do try (inlineSpaces >> string "-*-"); restOfLine
 
+-- TODO: why does (element = blankLines >> ...) when it's being used in
+-- blankSep?
 subdocument :: Parser [Content]
 subdocument = map Child <$> indentedBlankSep element
     where element = blankLines >> (section <|> header <|> paragraph)
@@ -138,6 +139,8 @@ blockquote :: Parser Elem
 blockquote = Elem "blockquote" [] <$> subdocument
 
 verbatim = do head <- restOfLine
+              -- Must use eof instead of eod, because verbatim sections in
+              -- subdocuments can contain right-braces }.
               rest <- (newline >> moreLines) <|> ([] <$ eof)
               -- Trailing blank lines are omitted
               let lines = dropTrailingBlanks (head : rest)
@@ -148,45 +151,60 @@ verbatim = do head <- restOfLine
       moreLines = sepEndBy (blankLine <|> indentedLine) newline
       blankLine = "" <$ try (inlineSpaces <* endOfLine)
       indentedLine = currentIndent >> restOfLine
-      -- Must use eof instead of eod, because verbatim sections in subdocuments
-      -- can contain right-braces }.
       dropTrailingBlanks = reverse . dropWhile (== "") . reverse
 
-
 
--- Paragraphs
+-- Headers and Paragraphs
 textChild :: String -> String -> Content
 textChild x y = childElem x [] [Text y]
 
-linkContent :: Parser Elem
-linkContent = do name <- many $ noneOf "|]"
-                 key <- option [] $ do char '|'
-                                       name <- many (noneOf "]")
-                                       return [textChild "key" name]
-                 return $ Elem "link" [] $ [Text name] ++ key
+header :: Parser Elem
+header = do hlvl <- length <$> many1 (char '*') <* char ' '
+            Elem ("h" ++ show hlvl) [] <$> nonEmpty "empty header" span
 
-linkDef :: Parser Elem
-linkDef = try $ do name <- between (char '[') (char ']') $ many $ noneOf "]"
-                   inlineSpaces
-                   url <- between (char '<') (char '>') $ many $ noneOf ">"
-                   return $ Elem "link_def" [] [textChild "link" name,
-                                                textChild "url" url]
+-- A paragraph can't start with an unescaped *, but that's handled by trying to
+-- parse header before us.
+paragraph :: Parser Elem
+paragraph = linkDef <|> Elem "p" [] <$> nonEmpty "empty paragraph" span
+
+-- A text span: the body of a paragraph or non-subdocument tagged element.
+span :: Parser [Content]
+span = spanExcept ""
+
+-- A span which treats certain characters as metachars in addition to the usual
+-- ones.
+spanExcept :: String -> Parser [Content]
+-- (intercalate [Text " "]) adds spaces between lines, as per the Markup spec
+spanExcept metas = joinText . intercalate [Text " "] <$>
+                   sepEndBy spanLine nextLine
+    where
+      -- One line in a paragraph or text span
+      spanLine = many1 (chunk metas)
+      -- A line-ending followed by the appropriate amount of whitespace to bring
+      -- us back to our current indent level.
+      nextLine = try $ newline >> currentIndent
+      -- Joins adjacent Text elements together, just to simplify things.
+      joinText (Text x : Text y : rest) = joinText $ Text (x++y) : rest
+      joinText (x:xs) = x : joinText xs
+      joinText [] = []
 
 {- A "chunk" a simple in-line component of a text span. It is one of:
-    - A sequence of unescaped characters ("foo *bar*, baz")
+    - A sequence of unescaped non-meta characters ("foo *bar*, baz")
     - An escaped character ("\{")
     - An explicitly tagged element ("\i{whatever}")
  -}
-chunk :: Parser Content
-chunk = (Text <$> (many1 . noneOf =<< askMetachars)) <|> -- plain old text
-        (do pl <- askConfig parseLinks                   -- a link
-            guard pl
-            Child <$> between (char '[') (char ']') linkContent) <|>
-        (char '\\' >> (taggedElement <|> escapedChar))
+chunk :: String -> Parser Content
+chunk metas = -- plain old text
+              (Text <$> (many1 . noneOf . (metas ++) =<< askMetachars)) <|>
+              -- a link
+              (do pl <- askConfig parseLinks
+                  guard pl
+                  Child <$> between (char '[') (char ']') linkContent) <|>
+              -- escaped character
+              (char '\\' >> (taggedElement <|> escapedChar))
     where
-      -- the (:[]) turns a Char into a [Char], ie a String.
       -- XXX: '-' can't be escaped with backslash. This is due to an issue with
-      -- the markup spec.
+      -- the markup spec. TODO: fix by saying that tag names can't start with -?
       escapedChar = Text . (:[]) <$> satisfy (not . isTagChar)
       taggedElement = Child <$> do
         isSubdocTag <- askConfig isSubdocumentTag
@@ -195,27 +213,17 @@ chunk = (Text <$> (many1 . noneOf =<< askMetachars)) <|> -- plain old text
                     if isSubdocTag name then subdocument else span
         return $ Elem name [] contents
 
--- One line in a paragraph or text span
-spanLine :: Parser [Content]
-spanLine = many1 chunk
+linkContent :: Parser Elem
+linkContent = do content <- spanExcept "|]"
+                 -- FIXME: do we need to gobble whitespace here?
+                 key <- option [] $ do char '|'
+                                       name <- many (noneOf "]")
+                                       return [textChild "key" name]
+                 return $ Elem "link" [] (content ++ key)
 
--- A text span: the body of a paragraph or non-subdocument tagged element.
-span :: Parser [Content]
--- (intercalate [Text " "]) adds spaces between lines, as per the Markup spec
-span = joinText . intercalate [Text " "] <$> sepEndBy spanLine nextLine
-    where
-      joinText (Text x : Text y : rest) = joinText $ Text (x++y) : rest
-      joinText (x:xs) = x : joinText xs
-      joinText [] = []
-      -- A line-ending followed by the appropriate amount of whitespace to bring
-      -- us back to our current indent level.
-      nextLine = try $ newline >> currentIndent
-
--- A paragraph can't start with an unescaped *, but that's handled by trying to
--- parse header before us.
-paragraph :: Parser Elem
-paragraph = linkDef <|> Elem "p" [] <$> nonEmpty "empty paragraph" span
-
-header :: Parser Elem
-header = do hlvl <- length <$> many1 (char '*') <* char ' '
-            Elem ("h" ++ show hlvl) [] <$> nonEmpty "empty header" span
+linkDef :: Parser Elem
+linkDef = try $ do name <- between (char '[') (char ']') $ many $ noneOf "]"
+                   inlineSpaces
+                   url <- between (char '<') (char '>') $ many $ noneOf ">"
+                   return $ Elem "link_def" [] [textChild "link" name,
+                                                textChild "url" url]

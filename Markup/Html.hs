@@ -50,11 +50,19 @@ fixLinks :: Map String String -> Transform Identity
 fixLinks defs (Elem "link" attrs contents) =
   let (newContents, url) =
           case reverse contents of
-            [Text txt] -> (contents, Map.findWithDefault txt txt defs)
+            -- TODO: non-exhaustive pattern
             Child (Elem "key" _ [Text key]) : rcontents ->
                 (reverse rcontents, Map.findWithDefault err key defs)
                     where err = error $ "undefined link key: " ++ key
+            _ -> (contents, Map.findWithDefault txt txt defs)
+                where txt = stripContents contents
   in return [childElem "a" (("href",url):attrs) newContents]
 
 fixLinks defs (Elem "link_def" _ _) = return []
 fixLinks _ x = return [Child x]
+
+-- Turns Markup into Text, stripping all tags.
+stripElem (Elem _ _ cs) = stripContents cs
+stripContent (Text s) = s
+stripContent (Child e) = stripElem e
+stripContents = concatMap stripContent
