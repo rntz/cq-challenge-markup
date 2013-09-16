@@ -21,9 +21,13 @@ config :: Config
 config = defaultConfig { isSubdocumentTag = \x -> elem x ["note"]
                        , parseLinks = True }
 
---renderMarkup = renderMarkupAsXML
---renderMarkup = renderMarkupAsSexp
-renderMarkup = renderMarkupAsHtml
+renderMarkup :: Elem -> String
+--renderMarkup = showXML . elemToXML
+--renderMarkup = showSexp . elemToSexp True -- True meaning "with attrs"
+renderMarkup = showHtml . elemToHtml
+
+program :: Doc -> String
+program = renderMarkup . docToElem . T.footnotes . T.links
 
 main :: IO ()
-main = runProgram config (renderMarkup . docToElem . T.footnotes . T.links)
+main = runProgram config program

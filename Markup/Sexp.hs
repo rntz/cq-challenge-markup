@@ -1,5 +1,6 @@
 module Markup.Sexp ( Sexp (..)
-                   , markupToSexp, showSexp, renderMarkupAsSexp )
+                   , docToSexp, elemToSexp, contentToSexp
+                   , showSexp )
 where
 
 import Data.List (intercalate)
@@ -40,14 +41,16 @@ escapeString s = concatMap escapeChar s
 showSexp :: Sexp -> String
 showSexp = show
 
-renderMarkupAsSexp :: Elem -> String
-renderMarkupAsSexp = show . markupToSexp
+docToSexp :: Bool -> Doc -> Sexp
+elemToSexp :: Bool -> Elem -> Sexp
+contentToSexp :: Bool -> Content -> Sexp
 
-markupToSexp :: Elem -> Sexp
-contentToSexp :: Content -> Sexp
+docToSexp withAttrs (Doc content) = List $ map (contentToSexp withAttrs) content
 
--- TODO: currently we just drop attrs. maybe we should include them?
-markupToSexp (Elem tag _ contents) =
-    List (Atom tag : map contentToSexp contents)
-contentToSexp (Text s) = String s
-contentToSexp (Child elem) = markupToSexp elem
+elemToSexp withAttrs (Elem tag as cs)
+    = List (car : map (contentToSexp withAttrs) cs)
+      where car = if not withAttrs then Atom tag
+                  else List (Atom tag : [List [Atom a, Atom v] | (a,v) <- as])
+
+contentToSexp _ (Text s) = String s
+contentToSexp withAttrs (Child elem) = elemToSexp withAttrs elem

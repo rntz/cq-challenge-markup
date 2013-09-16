@@ -1,5 +1,6 @@
 module Markup.Html ( module Markup.AST
-                   , markupToHtml, showHtml, renderMarkupAsHtml )
+                   , docToHtml, elemToHtml, contentToHtml
+                   , showHtml )
 where
 
 import Text.Html
@@ -11,11 +12,11 @@ import Markup.AST
 showHtml :: Html -> String
 showHtml = renderHtml
 
-renderMarkupAsHtml :: Elem -> String
-renderMarkupAsHtml = showHtml . markupToHtml
-
 htmlAttrs :: [(String,String)] -> [HtmlAttr]
 htmlAttrs = map (uncurry strAttr)
+
+instance HTML Doc where
+    toHtml (Doc cs) = toHtmlFromList cs
 
 instance HTML Elem where
     toHtml (Elem tagname attrs children) =
@@ -27,5 +28,10 @@ instance HTML Content where
     toHtml (Text s) = toHtml s
     toHtml (Child e) = toHtml e
 
-markupToHtml :: Elem -> Html
-markupToHtml = toHtml
+docToHtml :: Doc -> Html
+elemToHtml :: Elem -> Html
+contentToHtml :: Content -> Html
+
+docToHtml = toHtml
+elemToHtml = toHtml
+contentToHtml = toHtml
