@@ -12,7 +12,7 @@ import Markup.Parse
 errmsg x = hPutStrLn stderr x
 failWith x = do errmsg x; exitFailure
 
-runProgram :: Config -> (Doc -> String) -> IO ()
+runProgram :: Config -> (Doc -> IO String) -> IO ()
 runProgram config render = do
   args <- getArgs
   (srcname, contents) <-
@@ -22,4 +22,4 @@ runProgram config render = do
         _ -> failWith "could not parse command-line arguments"
   case parse config srcname contents of
     Left err -> failWith $ show err
-    Right markup -> putStr $ render markup
+    Right markup -> putStr =<< render markup

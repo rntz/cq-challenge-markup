@@ -85,7 +85,7 @@ indent x = try $ ind x
       ind x | x > 0 = do c <- inlineSpace
                          ind (x - charWidth c)
             | x == 0 = return () -- succeed
-            | x < 0 = mzero      -- fail
+            | otherwise = mzero  -- fail
       -- Width of a character for depth-of-indentation purposes.
       charWidth '\t' = 8
       charWidth _ = 1

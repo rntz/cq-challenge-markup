@@ -1,4 +1,4 @@
-module Markup.Transforms (links, footnotes)
+module Markup.Transforms (includes, links, footnotes)
 where
 
 import Control.Applicative
@@ -11,12 +11,30 @@ import Control.Monad.Writer
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import System.Exit (exitFailure)
+import System.IO
+
 import Markup.AST
+import Markup.Parse
 import Markup.Transform
 
 classA x = ("class", x)
 idA x = ("id", x)
 hrefA x = ("href", x)
+
+
+-- Including other markup documents via \include.
+includes :: Config -> Doc -> IO Doc
+includes cfg = transformDoc (include cfg)
+
+include :: Config -> Transform IO
+include cfg (Elem "include" _ [Text path]) = do
+  contents <- readFile path
+  case parse cfg path contents of
+    Right (Doc content) -> return content
+    Left err -> do hPutStrLn stderr $ show err
+                   exitFailure
+include _ e = return [Child e]
 
 
 -- Parsing links & link defs into HTML anchors.

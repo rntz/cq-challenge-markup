@@ -26,8 +26,9 @@ renderMarkup :: Elem -> String
 --renderMarkup = showSexp . elemToSexp True -- True meaning "with attrs"
 renderMarkup = showHtml . elemToHtml
 
-program :: Doc -> String
-program = renderMarkup . docToElem . T.footnotes . T.links
+program :: Doc -> IO String
+program d = renderMarkup . docToElem . T.footnotes . T.links
+            <$> T.includes config d
 
 main :: IO ()
 main = runProgram config program

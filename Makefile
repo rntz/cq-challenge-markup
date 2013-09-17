@@ -3,6 +3,7 @@
 EFILES:=markup
 PACKAGES:=parsec html xml
 HSFLAGS:=$(addprefix -package ,$(PACKAGES))
+HSFLAGS+= -fwarn-incomplete-patterns
 
 all: $(EFILES)
 
