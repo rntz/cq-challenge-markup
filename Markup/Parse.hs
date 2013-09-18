@@ -192,6 +192,13 @@ spanExcept metas = joinText . intercalate [Text " "] <$>
     - A sequence of unescaped non-meta characters ("foo *bar*, baz")
     - An escaped character ("\{")
     - An explicitly tagged element ("\i{whatever}")
+
+   We extend the markup spec by allowing tagged elements to have attributes
+   specified using \foo[attr1=value1,attr2=value2] notation.
+
+   Values and attributes may be any sequence of tag-characters, or quoted
+   strings. Inside quoted strings the escapes \\ and \" are understood, but no
+   others.
  -}
 chunk :: String -> Parser Content
 chunk metas = -- plain old text
@@ -208,10 +215,21 @@ chunk metas = -- plain old text
       escapedChar = Text . (:[]) <$> satisfy (not . isTagChar)
       taggedElement = Child <$> do
         isSubdocTag <- askConfig isSubdocumentTag
-        name <- many1 (satisfy isTagChar)
+        name <- tagName
+        attrs <- option [] $ between (char '[') (char ']') $
+                 sepEndBy attr (char ',')
         contents <- between (char '{') (char '}') $
                     if isSubdocTag name then subdocument else span
-        return $ Elem name [] contents
+        return $ Elem name attrs contents
+      tagName = many1 (satisfy isTagChar)
+      spaced = between inlineSpaces inlineSpaces
+      attr = spaced $ do
+        name <- tagName <|> quotedString
+        spaced $ char '='
+        value <- tagName <|> quotedString
+        return (name, value)
+      quotedString = between (char '"') (char '"') $ many stringChar
+      stringChar = noneOf "\"\\" <|> (char '\\' >> oneOf "\"\\")
 
 linkContent :: Parser Elem
 linkContent = do content <- spanExcept "|]"

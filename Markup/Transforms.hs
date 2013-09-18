@@ -71,6 +71,7 @@ stripContents = concatMap stripContent
 
 
 -- Lifting footnotes out of the body
+-- TODO: if no footnotes are found, don't insert a footnotes section
 footnotes :: Doc -> Doc
 footnotes doc = putNotes notes doc'
     where (doc', notes) = runState (transformDoc getNotes doc) []
