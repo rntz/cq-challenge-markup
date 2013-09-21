@@ -30,10 +30,10 @@ hrefA x = ("href", x)
 
 
 -- Including other markup documents via \include.
-includes :: Config -> Doc -> IO Doc
+includes :: ParseConfig -> Doc -> IO Doc
 includes cfg = transformDoc (include cfg)
 
-include :: Config -> Transform IO
+include :: ParseConfig -> Transform IO
 include cfg (Elem "include" _ [Text path]) = do
   contents <- readFile path
   case parse cfg path contents of

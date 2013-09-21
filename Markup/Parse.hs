@@ -17,30 +17,31 @@ import Control.Applicative hiding
 import Markup.AST
 
 -- External configuration passed to the parser
-data Config = Config {
+data ParseConfig = ParseConfig {
     -- predicate telling us which tags start subdocuments
       isSubdocumentTag :: String -> Bool
     -- whether to parse links
     , parseLinks :: Bool
     }
 
-defaultConfig = Config { isSubdocumentTag = const False
-                       , parseLinks = True }
+defaultParseConfig =
+    ParseConfig { isSubdocumentTag = const False
+                , parseLinks = True }
 
 -- Our internal context while parsing.
 data Context = Context { ctxIndentDepth :: Int -- current indentation depth
-                       , ctxConfig :: Config } -- configuration
+                       , ctxConfig :: ParseConfig } -- configuration
 
 -- We parse strings, we have no state, and our underlying monad is the ability
 -- to read our context.
 type Parser a = ParsecT String () (Reader Context) a
 
 -- Getting at our configuration from context.
-askConfig :: (Config -> a) -> Parser a
+askConfig :: (ParseConfig -> a) -> Parser a
 askConfig accessor = asks (accessor . ctxConfig)
 
 -- The parse function
-parse :: Config -> SourceName -> String -> Either ParseError Doc
+parse :: ParseConfig -> SourceName -> String -> Either ParseError Doc
 parse cfg sourceName text = parse1 cfg sourceName document text
 
 parse1 cfg sourceName p text = runReader parsed ctx

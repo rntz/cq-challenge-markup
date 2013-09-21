@@ -12,7 +12,7 @@ import Markup.Parse
 errmsg x = hPutStrLn stderr x
 failWith x = do errmsg x; exitFailure
 
-runProgram :: Config -> (Doc -> IO String) -> IO ()
+runProgram :: ParseConfig -> (Doc -> IO String) -> IO ()
 runProgram config render = do
   args <- getArgs
   (srcname, contents) <-
