@@ -1,5 +1,6 @@
 module Markup.Html ( module Markup.AST
-                   , docToHtml, elemToHtml, contentToHtml
+                   , ToHtmlConfig(..), defaultToHtmlConfig
+                   , docToHtml, elemToHtml, contentToHtml, contentsToHtml
                    , showHtml )
 where
 
@@ -15,23 +16,21 @@ showHtml = renderHtml
 htmlAttrs :: [(String,String)] -> [HtmlAttr]
 htmlAttrs = map (uncurry strAttr)
 
-instance HTML Doc where
-    toHtml (Doc cs) = toHtmlFromList cs
+data ToHtmlConfig = ToHtmlConfig { escapeHtml :: Bool }
+defaultToHtmlConfig = ToHtmlConfig { escapeHtml = True }
 
-instance HTML Elem where
-    toHtml (Elem tagname attrs children) =
-        tag tagname ! map (uncurry strAttr) attrs $ toHtmlFromList children
+docToHtml :: ToHtmlConfig -> Doc -> Html
+elemToHtml :: ToHtmlConfig -> Elem -> Html
+contentToHtml :: ToHtmlConfig -> Content -> Html
+contentsToHtml :: ToHtmlConfig -> [Content] -> Html
 
-instance HTML Content where
-    -- TODO: toHtml for Strings assumes that the content-encoding of the page is
-    -- going to be utf8. is there some way to fix this?
-    toHtml (Text s) = toHtml s
-    toHtml (Child e) = toHtml e
+docToHtml cfg (Doc cs) = contentsToHtml cfg cs
+contentsToHtml cfg = concatHtml . map (contentToHtml cfg)
 
-docToHtml :: Doc -> Html
-elemToHtml :: Elem -> Html
-contentToHtml :: Content -> Html
+elemToHtml cfg (Elem tagname attrs content) =
+    tag tagname ! htmlAttrs attrs $ contentsToHtml cfg content
 
-docToHtml = toHtml
-elemToHtml = toHtml
-contentToHtml = toHtml
+contentToHtml cfg (Child e) = elemToHtml cfg e
+contentToHtml cfg (Text s)
+    | escapeHtml cfg = toHtml s
+    | otherwise = primHtml s
