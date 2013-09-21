@@ -1,4 +1,8 @@
-module Markup.Transforms (includes, links, footnotes)
+{-# LANGUAGE PatternGuards #-}
+module Markup.Transforms
+    ( includes, links, footnotes
+    , numberHeadings, NumberHeadingsConfig(..), defaultNumberHeadingsConfig
+    )
 where
 
 import Control.Applicative
@@ -8,7 +12,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 
+import Data.List (intercalate)
 import Data.Map (Map)
+import Data.Maybe (listToMaybe, maybeToList)
 import qualified Data.Map as Map
 
 import System.Exit (exitFailure)
@@ -35,6 +41,54 @@ include cfg (Elem "include" _ [Text path]) = do
     Left err -> do hPutStrLn stderr $ show err
                    exitFailure
 include _ e = return [Child e]
+
+
+-- Auto-numbers headings based on configuration
+data NumberHeadingsConfig = NumberHeadingsConfig
+    { nhcMinDepth :: Int
+    , nhcMaxDepth :: Maybe Int
+    , nhcShowNumber :: [Int] -> Maybe String
+    , nhcId :: [Int] -> Maybe String
+    , nhcClass :: Maybe String }
+
+defaultNumberHeadingsConfig =
+    NumberHeadingsConfig
+    { nhcMinDepth = 1
+    , nhcMaxDepth = Nothing
+    , nhcShowNumber = Just . intercalate "." . map show
+    , nhcId = \ns -> Just $ "heading-" ++ intercalate "-" (map show ns)
+    , nhcClass = Just "heading-number"
+    }
+
+numberHeadings :: NumberHeadingsConfig -> Doc -> Doc
+numberHeadings cfg d = evalState (transformDoc (numH cfg) d) []
+
+numH :: NumberHeadingsConfig -> Transform (State [Int])
+numH cfg e@(Elem tag@('h':hnums) as cs)
+    | Just hno <- readMaybe hnums
+    , nhcMinDepth cfg <= hno
+    , maybe True (hno <=) (nhcMaxDepth cfg)
+    = do
+  nums <- get
+  let oldDepth = length nums
+  -- Our new depth, starting at 1 if we're at nhcMinDepth.
+  let newDepth = 1 + hno - nhcMinDepth cfg
+  let nums' | newDepth <= 0 = []
+      -- if we're below minimum depth, reset
+      -- if we're deeper than before, add 1s to the end to reach our new depth.
+            | newDepth > oldDepth = nums ++ replicate (newDepth - oldDepth) 1
+      -- otherwise, truncate to our new depth and add 1 to the end of it
+            | otherwise = take (newDepth-1) nums ++ [1 + nums !! (newDepth-1)]
+  put nums'
+  let as' = [idA x | x <- maybeToList $ nhcId cfg nums']
+  let cs' = do number <- maybeToList $ nhcShowNumber cfg nums'
+               [childElem "span" [classA x | x <- maybeToList $ nhcClass cfg]
+                          [Text number], Text " "]
+  return [childElem tag (as' ++ as) (cs' ++ cs)]
+numH _ e = return [Child e]
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe s = listToMaybe [x | (x,"") <- reads s]
 
 
 -- Parsing links & link defs into HTML anchors.
